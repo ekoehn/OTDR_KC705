@@ -1,0 +1,110 @@
+#(
+
+	parameter clkFreq = 200_000_000,
+	parameter I2CFreq = 100_000
+
+	)(
+		input clk,
+		input rst_n,
+		input RECONFIG,
+		output scl,
+		inout sda
+    );
+
+	localparam IDLE = 3'd0; 
+	localparam CHECK = 3'd1;
+	localparam START = 3'd2;
+	localparam WAIT_DONE = 3'd3;
+	localparam CLR = 3'd4;
+	localparam INC = 3'd5;
+	localparam WAIT1 = 3'd6; 
+	localparam DONE = 3'd7; 
+
+	wire reset = ~rst_n;
+
+	reg [23:0] SI_DATA;
+
+	reg [5:0] counter;
+
+	always @ (posedge clk or posedge reset) begin
+		if(reset) begin
+			counter <= 0;
+		end
+		else begin
+			if(clr) begin
+				counter <= 0;
+			end
+			else if (enc) begin
+				counter <= counter + 1;
+			end
+		end
+	end
+
+	reg [2:0] state,nextstate;
+
+	always @ (posedge clk or posedge reset) begin
+		if(reset) begin
+			state <= IDLE;
+		end
+		else begin
+			state <= nextstate;
+		end
+	end
+	reg clr;
+	reg enc;
+	reg start;
+	wire done;
+	always @ (*) begin
+		clr = 0;
+		enc = 0;
+		start = 0;
+		nextstate = state;
+		case(state)
+		IDLE:begin
+			clr = 1;
+			if(RECONFIG)
+				nextstate <= CHECK;
+		end
+		CHECK:begin
+			clr = 0;
+			if(counter < 6'd43) begin
+				nextstate = START;
+			end
+			else begin
+				nextstate = DONE;
+			end
+		end
+		START:begin
+			start = 1;
+			nextstate = WAIT_DONE;
+		end
+		WAIT_DONE:begin
+			start = 1;
+			if(done) begin
+				nextstate = CLR;
+			end
+		end
+		CLR:begin
+			if(done == 0) begin
+				nextstate = INC;
+			end
+		end
+		INC:begin
+			enc = 1;
+			nextstate = WAIT1;
+		end
+		WAIT1:begin
+			nextstate = CHECK;
+		end
+		DONE:begin
+			if(~RECONFIG) begin
+				nextstate = DONE;
+			end
+		end
+		endcase
+	end
+
+
+	always @ (*) begin
+		case(counter)
+		6'd0: begin SI_DATA = {8'hE8,8'h90,8'h90}; end

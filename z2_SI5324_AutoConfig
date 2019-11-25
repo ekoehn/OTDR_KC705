@@ -1,0 +1,22 @@
+		endcase
+	end
+
+
+	I2C_master #(
+			.clkFreq(clkFreq),
+			.I2CFreq(I2CFreq)
+		) inst_I2C_master (
+			.clk      (clk),
+			.reset    (reset),
+			.data_in  (SI_DATA),
+			.start    (start),
+			.wr       (1),
+			.scl      (scl),
+			.sda      (sda),
+			.busy     (),
+			.done     (done),
+			.error    (),
+			.data_out ()
+		);
+
+endmodule
